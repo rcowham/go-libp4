@@ -223,12 +223,8 @@ func (p4 *P4) RunP(args []string) ([]map[interface{}]interface{}, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := cmd.Run()
+	mainerr := cmd.Run()
 	results := make([]map[interface{}]interface{}, 0)
-	if err != nil {
-		//		log.Fatalf("cmd.Run() failed with %s\n", err)
-		return results, err
-	}
 	for {
 		r, err := Unmarshal(&stdout)
 		if err == io.EOF {
@@ -237,16 +233,11 @@ func (p4 *P4) RunP(args []string) ([]map[interface{}]interface{}, error) {
 		if err == nil {
 			results = append(results, r.(map[interface{}]interface{}))
 		} else {
+			if mainerr == nil {
+				mainerr = err
+			}
 			break
 		}
 	}
-	return results, err
-	// outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-	// fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-
-	// if data, err := cmd.CombinedOutput(); err != nil {
-	// 	return data, err
-	// } else {
-	// 	return data, nil
-	// }
+	return results, mainerr
 }
