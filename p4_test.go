@@ -2,6 +2,7 @@ package p4
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"path"
@@ -42,11 +43,13 @@ func (p4s *p4server) setupServer() {
 	// p4s.p4c.client = p4client
 
 }
-func TestUnmarshallInfo(t *testing.T) {
+
+func runUnmarshall(t *testing.T, testFile string) []map[interface{}]interface{} {
 	results := make([]map[interface{}]interface{}, 0)
-	buf, err := ioutil.ReadFile(path.Join("testdata", "info.bin"))
+	fname := path.Join("testdata", testFile)
+	buf, err := ioutil.ReadFile(fname)
 	if err != nil {
-		assert.Fail(t, "Can't read file")
+		assert.Fail(t, fmt.Sprintf("Can't read file: %s", fname))
 	}
 	mbuf := bytes.NewBuffer(buf)
 	for {
@@ -60,16 +63,45 @@ func TestUnmarshallInfo(t *testing.T) {
 			break
 		}
 	}
-	assert.Equal(t, 1, len(results))
-	r := results[0]
-	val, ok := r["serverAddress"]
-	assert.True(t, ok)
-	assert.Equal(t, "unknown", val)
-	// for _, r := range results {
-	// 	for k, v := range r {
-	// 		fmt.Printf("%v: %v\n", k, v)
-	// 	}
-	// 	fmt.Printf("\n")
-	// }
+	return results
+}
 
+func assertMapContains(t *testing.T, result map[interface{}]interface{}, key string, expected string) {
+	val, ok := result[key]
+	assert.True(t, ok)
+	assert.Equal(t, expected, val)
+}
+
+func TestUnmarshallInfo(t *testing.T) {
+	results := runUnmarshall(t, "info.bin")
+	assert.Equal(t, 1, len(results))
+	assertMapContains(t, results[0], "serverAddress", "unknown")
+}
+
+func TestUnmarshallChanges(t *testing.T) {
+	results := runUnmarshall(t, "changes.bin")
+	assert.Equal(t, 3, len(results))
+	assertMapContains(t, results[0], "change", "3")
+	assertMapContains(t, results[1], "change", "2")
+	assertMapContains(t, results[2], "change", "1")
+
+	assertMapContains(t, results[1], "time", "1557746038")
+	assertMapContains(t, results[1], "user", "rcowham")
+	assertMapContains(t, results[1], "client", "rcowham-dvcs-1557689468")
+	assertMapContains(t, results[1], "status", "submitted")
+	assertMapContains(t, results[1], "changeType", "public")
+	assertMapContains(t, results[1], "path", "//stream/main/p4cmdf/*")
+	assertMapContains(t, results[1], "desc", "second")
+
+	assertMapContains(t, results[0], "desc", "Multi line change description\nS")
+}
+
+func TestUnmarshallChangesLongDesc(t *testing.T) {
+	results := runUnmarshall(t, "changes-l.bin")
+	assert.Equal(t, 3, len(results))
+	assertMapContains(t, results[0], "change", "3")
+	assertMapContains(t, results[1], "change", "2")
+	assertMapContains(t, results[2], "change", "1")
+
+	assertMapContains(t, results[0], "desc", "Multi line change description\nSecond line\nThird line\n")
 }
