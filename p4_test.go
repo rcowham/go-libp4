@@ -68,7 +68,7 @@ func runUnmarshall(t *testing.T, testFile string) []map[interface{}]interface{} 
 
 func assertMapContains(t *testing.T, result map[interface{}]interface{}, key string, expected string) {
 	val, ok := result[key]
-	assert.True(t, ok)
+	assert.True(t, ok, fmt.Sprintf("key not found: %s", key))
 	assert.Equal(t, expected, val)
 }
 
@@ -104,4 +104,21 @@ func TestUnmarshallChangesLongDesc(t *testing.T) {
 	assertMapContains(t, results[2], "change", "1")
 
 	assertMapContains(t, results[0], "desc", "Multi line change description\nSecond line\nThird line\n")
+}
+
+func TestUnmarshallFetchChange(t *testing.T) {
+	results := runUnmarshall(t, "change-o.bin")
+	assert.Equal(t, 1, len(results))
+	assertMapContains(t, results[0], "Change", "new")
+	assertMapContains(t, results[0], "Status", "new")
+	assertMapContains(t, results[0], "Description", "<enter description here>\n")
+	assertMapContains(t, results[0], "Client", "rcowham-dvcs-1557689468")
+	assertMapContains(t, results[0], "User", "rcowham")
+}
+
+func TestFormatSpec(t *testing.T) {
+	spec := map[string]string{"Change": "new",
+		"Description": "My line\nSecond line\nThird line\n",
+	}
+	assert.Equal(t, "Change: new\n\nDescription:\n My line\n Second line\n Third line\n\n", formatSpec(spec))
 }

@@ -11,8 +11,10 @@ package p4
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
 	"encoding/binary"
 	"errors"
@@ -232,6 +234,64 @@ func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	mainerr := cmd.Run()
+	results := make([]map[interface{}]interface{}, 0)
+	for {
+		r, err := Unmarshal(&stdout)
+		if err == io.EOF {
+			break
+		}
+		if err == nil {
+			results = append(results, r.(map[interface{}]interface{}))
+		} else {
+			if mainerr == nil {
+				mainerr = err
+			}
+			break
+		}
+	}
+	return results, mainerr
+}
+
+// Assume multiline entries should be on seperate lines
+func formatSpec(specContents map[string]string) string {
+	var output bytes.Buffer
+	for k, v := range specContents {
+		if strings.Index(v, "\n") > -1 {
+			output.WriteString(fmt.Sprintf("%s:", k))
+			lines := strings.Split(v, "\n")
+			for i := range lines {
+				if len(strings.TrimSpace(lines[i])) > 0 {
+					output.WriteString(fmt.Sprintf("\n %s", lines[i]))
+				}
+			}
+			output.WriteString("\n\n")
+		} else {
+			output.WriteString(fmt.Sprintf("%s: %s\n\n", k, v))
+		}
+	}
+	return output.String()
+}
+
+// Save - runs p4 -i for specified spec returns result
+func (p4 *P4) Save(specName string, specContents map[string]string, args []string) ([]map[interface{}]interface{}, error) {
+	nargs := []string{"-G", specName, "-i"}
+	nargs = append(nargs, args...)
+	cmd := exec.Command("p4", nargs...)
+	var stdout, stderr bytes.Buffer
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Println("An error occured: ", err)
+	}
+	defer stdin.Close()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	mainerr := cmd.Start()
+	if mainerr != nil {
+		fmt.Println("An error occured: ", mainerr)
+	}
+	io.WriteString(stdin, formatSpec(specContents))
+	cmd.Wait()
+
 	results := make([]map[interface{}]interface{}, 0)
 	for {
 		r, err := Unmarshal(&stdout)
