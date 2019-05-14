@@ -192,20 +192,28 @@ func readDict(buffer *bytes.Buffer) (ret map[interface{}]interface{}, retErr err
 
 // P4 - environment for P4
 type P4 struct {
-	port string
-	user string
+	port   string
+	user   string
+	client string
 }
 
 // NewP4 - create and initialise properly
-func NewP4(port string, user string) *P4 {
+func NewP4() *P4 {
 	var p4 P4
-	p4.port = port
-	p4.user = user
 	return &p4
 }
 
-// Run - runs p4 command
-func (p4 *P4) Run(args []string) ([]byte, error) {
+// NewP4Params - create and initialise with params
+func NewP4Params(port string, user string, client string) *P4 {
+	var p4 P4
+	p4.port = port
+	p4.user = user
+	p4.client = client
+	return &p4
+}
+
+// RunBytes - runs p4 command and returns []byte output
+func (p4 *P4) RunBytes(args []string) ([]byte, error) {
 	cmd := exec.Command("p4", args...)
 
 	if data, err := cmd.CombinedOutput(); err != nil {
@@ -215,8 +223,8 @@ func (p4 *P4) Run(args []string) ([]byte, error) {
 	}
 }
 
-// RunP - runs p4 command
-func (p4 *P4) RunP(args []string) ([]map[interface{}]interface{}, error) {
+// Run - runs p4 command and returns map
+func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 	nargs := []string{"-G"}
 	nargs = append(nargs, args...)
 	cmd := exec.Command("p4", nargs...)
