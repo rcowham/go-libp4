@@ -17,21 +17,35 @@ import (
 
 var testRoot string
 
+// TestMain - required as a wrapper for 'go test' to set directory appropriatly so that
+// p4 will pick up .p4config etc.
 func TestMain(m *testing.M) {
 	fmt.Printf("TestMain: %s", os.Environ())
 	dir, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Failed to Getwd: %v\n", err)
 	}
-	fmt.Printf("Cwd: %s\n", dir)
+	fmt.Printf("TM Cwd: %s\n", dir)
 	os.Setenv("PWD", dir)
 	code := m.Run()
 	os.Exit(code)
 }
 
+// Call at start of all tests - we recreate a blank DVCS repo
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
-	testRoot = path.Join(path.Dir(filename), "_testdir")
+	testRoot = path.Join(path.Dir(filename), "_testdata")
+	// if _, err := os.Stat(testRoot); !os.IsNotExist(err) {
+	// 	err = os.RemoveAll(testRoot)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// } else {
+	os.RemoveAll(testRoot + "/")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// }
 	err := os.Mkdir(testRoot, 0755)
 	if err != nil {
 		fmt.Printf("Failed to mkdir: %v\n", err)
@@ -44,16 +58,22 @@ func init() {
 	if err != nil {
 		fmt.Printf("Failed to Getwd: %v\n", err)
 	}
-	fmt.Printf("Cwd: %s\n", dir)
+	fmt.Printf("Init Cwd: %s\n", dir)
+	os.Setenv("PWD", dir)
+	cmd := exec.Command("p4", "init", "-n", "-C1")
+
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Printf("Failed to start server: %s\n", stderr.String())
+		log.Fatal(err)
+	}
+	fmt.Printf("Started server: %q\n", out.String())
 }
 
 func setupServer() {
-	// testRoot, err := ioutil.TempDir("", "p4_test")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Printf("Temp dir: %s\n", testRoot)
-	// defer os.RemoveAll(testRoot) // clean up
 
 	dir, err := os.Getwd()
 	if err != nil {
@@ -72,19 +92,6 @@ func setupServer() {
 		log.Fatal(err)
 	}
 	fmt.Printf("Pwd: %q\n", out.String())
-
-	// cmd := exec.Command("p4", "init", "-n", "-C1")
-	// cmd.Dir = testRoot
-
-	// var out, stderr bytes.Buffer
-	// cmd.Stdout = &out
-	// cmd.Stderr = &stderr
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Printf("Failed to start server: %s\n", stderr.String())
-	// 	log.Fatal(err)
-	// }
-	// fmt.Printf("Started server: %q\n", out.String())
 }
 
 func TestInfo(t *testing.T) {
@@ -94,7 +101,7 @@ func TestInfo(t *testing.T) {
 	if err != nil {
 		fmt.Printf("Failed to Getwd: %v\n", err)
 	}
-	fmt.Printf("Cwd: %s\n", dir)
+	fmt.Printf("Test Cwd: %s\n", dir)
 
 	// out1, err := exec.Command("p4", "set").Output()
 	// if err != nil {
