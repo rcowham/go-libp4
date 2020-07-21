@@ -5,43 +5,122 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type p4server struct {
-	test_root   string
-	server_root string
-	client_root string
-	port        string
-	user        string
-	p4d         string
-	p4c         P4
+var testRoot string
+
+func TestMain(m *testing.M) {
+	fmt.Printf("TestMain: %s", os.Environ())
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Failed to Getwd: %v\n", err)
+	}
+	fmt.Printf("Cwd: %s\n", dir)
+	os.Setenv("PWD", dir)
+	code := m.Run()
+	os.Exit(code)
 }
 
-func (p4s *p4server) setupServer() {
-	// string p4d
+func init() {
+	_, filename, _, _ := runtime.Caller(0)
+	testRoot = path.Join(path.Dir(filename), "_testdir")
+	err := os.Mkdir(testRoot, 0755)
+	if err != nil {
+		fmt.Printf("Failed to mkdir: %v\n", err)
+	}
+	err = os.Chdir(testRoot)
+	if err != nil {
+		fmt.Printf("Failed to chdir: %v\n", err)
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Failed to Getwd: %v\n", err)
+	}
+	fmt.Printf("Cwd: %s\n", dir)
+}
 
-	// dir, err := ioutil.TempDir("", "p4_test")
+func setupServer() {
+	// testRoot, err := ioutil.TempDir("", "p4_test")
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
-	// p4s.test_root = dir
-	// fmt.Println("Temp dir: %s", p4s.test_root)
-	// defer os.RemoveAll(p4s.test_root) // clean up
+	// fmt.Printf("Temp dir: %s\n", testRoot)
+	// defer os.RemoveAll(testRoot) // clean up
 
-	// p4s.server_root = path.Join(p4s.test_root, "server")
-	// p4s.client_root = path.Join(p4s.test_root, "client")
-	// os.MkdirAll(p4s.server_root, os.ModeDir)
-	// os.MkdirAll(p4s.client_root, os.ModeDir)
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Failed to Getwd: %v\n", err)
+	}
+	fmt.Printf("Cwd: %s\n", dir)
+	cmd := exec.Command("pwd")
+	// cmd.Dir = testRoot
 
-	// p4s.p4d = "p4d"
-	// p4s.port = fmt.Sprintf("rsh:%s -r \"%s\" -L log -i", p4s.p4d, p4s.server_root)
-	// p4s.p4c = NewP4(p4s.port, p4s.user)
-	// p4s.p4c.client = p4client
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Printf("Failed to run pwd: %s\n", stderr.String())
+		log.Fatal(err)
+	}
+	fmt.Printf("Pwd: %q\n", out.String())
 
+	// cmd := exec.Command("p4", "init", "-n", "-C1")
+	// cmd.Dir = testRoot
+
+	// var out, stderr bytes.Buffer
+	// cmd.Stdout = &out
+	// cmd.Stderr = &stderr
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Printf("Failed to start server: %s\n", stderr.String())
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("Started server: %q\n", out.String())
+}
+
+func TestInfo(t *testing.T) {
+	// setupServer()
+
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Failed to Getwd: %v\n", err)
+	}
+	fmt.Printf("Cwd: %s\n", dir)
+
+	// out1, err := exec.Command("p4", "set").Output()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("p4 set is %s\n", out1)
+
+	cmd := exec.Command("p4", "info")
+	// cmd.Dir = testRoot
+	// cmd.Env = os.Environ()
+	// cmd.Env = append(cmd.Env, "P4CONFIG=.p4config")
+
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("P4 info: %s\nerr: %s", out.String(), stderr.String())
+
+	// p4 := NewP4()
+	// result, err := p4.Run([]string{"info"})
+	// assert.Equal(t, 1, len(result))
+	// fmt.Printf("P4 info result: %v\n", result[0])
+	// assertMapContains(t, result[0], "serverAddress", "unknown")
 }
 
 func runUnmarshall(t *testing.T, testFile string) []map[interface{}]interface{} {
@@ -72,53 +151,53 @@ func assertMapContains(t *testing.T, result map[interface{}]interface{}, key str
 	assert.Equal(t, expected, val)
 }
 
-func TestUnmarshallInfo(t *testing.T) {
-	results := runUnmarshall(t, "info.bin")
-	assert.Equal(t, 1, len(results))
-	assertMapContains(t, results[0], "serverAddress", "unknown")
-}
+// func TestUnmarshallInfo(t *testing.T) {
+// 	results := runUnmarshall(t, "info.bin")
+// 	assert.Equal(t, 1, len(results))
+// 	assertMapContains(t, results[0], "serverAddress", "unknown")
+// }
 
-func TestUnmarshallChanges(t *testing.T) {
-	results := runUnmarshall(t, "changes.bin")
-	assert.Equal(t, 3, len(results))
-	assertMapContains(t, results[0], "change", "3")
-	assertMapContains(t, results[1], "change", "2")
-	assertMapContains(t, results[2], "change", "1")
+// func TestUnmarshallChanges(t *testing.T) {
+// 	results := runUnmarshall(t, "changes.bin")
+// 	assert.Equal(t, 3, len(results))
+// 	assertMapContains(t, results[0], "change", "3")
+// 	assertMapContains(t, results[1], "change", "2")
+// 	assertMapContains(t, results[2], "change", "1")
 
-	assertMapContains(t, results[1], "time", "1557746038")
-	assertMapContains(t, results[1], "user", "rcowham")
-	assertMapContains(t, results[1], "client", "rcowham-dvcs-1557689468")
-	assertMapContains(t, results[1], "status", "submitted")
-	assertMapContains(t, results[1], "changeType", "public")
-	assertMapContains(t, results[1], "path", "//stream/main/p4cmdf/*")
-	assertMapContains(t, results[1], "desc", "second")
+// 	assertMapContains(t, results[1], "time", "1557746038")
+// 	assertMapContains(t, results[1], "user", "rcowham")
+// 	assertMapContains(t, results[1], "client", "rcowham-dvcs-1557689468")
+// 	assertMapContains(t, results[1], "status", "submitted")
+// 	assertMapContains(t, results[1], "changeType", "public")
+// 	assertMapContains(t, results[1], "path", "//stream/main/p4cmdf/*")
+// 	assertMapContains(t, results[1], "desc", "second")
 
-	assertMapContains(t, results[0], "desc", "Multi line change description\nS")
-}
+// 	assertMapContains(t, results[0], "desc", "Multi line change description\nS")
+// }
 
-func TestUnmarshallChangesLongDesc(t *testing.T) {
-	results := runUnmarshall(t, "changes-l.bin")
-	assert.Equal(t, 3, len(results))
-	assertMapContains(t, results[0], "change", "3")
-	assertMapContains(t, results[1], "change", "2")
-	assertMapContains(t, results[2], "change", "1")
+// func TestUnmarshallChangesLongDesc(t *testing.T) {
+// 	results := runUnmarshall(t, "changes-l.bin")
+// 	assert.Equal(t, 3, len(results))
+// 	assertMapContains(t, results[0], "change", "3")
+// 	assertMapContains(t, results[1], "change", "2")
+// 	assertMapContains(t, results[2], "change", "1")
 
-	assertMapContains(t, results[0], "desc", "Multi line change description\nSecond line\nThird line\n")
-}
+// 	assertMapContains(t, results[0], "desc", "Multi line change description\nSecond line\nThird line\n")
+// }
 
-func TestUnmarshallFetchChange(t *testing.T) {
-	results := runUnmarshall(t, "change-o.bin")
-	assert.Equal(t, 1, len(results))
-	assertMapContains(t, results[0], "Change", "new")
-	assertMapContains(t, results[0], "Status", "new")
-	assertMapContains(t, results[0], "Description", "<enter description here>\n")
-	assertMapContains(t, results[0], "Client", "rcowham-dvcs-1557689468")
-	assertMapContains(t, results[0], "User", "rcowham")
-}
+// func TestUnmarshallFetchChange(t *testing.T) {
+// 	results := runUnmarshall(t, "change-o.bin")
+// 	assert.Equal(t, 1, len(results))
+// 	assertMapContains(t, results[0], "Change", "new")
+// 	assertMapContains(t, results[0], "Status", "new")
+// 	assertMapContains(t, results[0], "Description", "<enter description here>\n")
+// 	assertMapContains(t, results[0], "Client", "rcowham-dvcs-1557689468")
+// 	assertMapContains(t, results[0], "User", "rcowham")
+// }
 
-func TestFormatSpec(t *testing.T) {
-	spec := map[string]string{"Change": "new",
-		"Description": "My line\nSecond line\nThird line\n",
-	}
-	assert.Equal(t, "Change: new\n\nDescription:\n My line\n Second line\n Third line\n\n", formatSpec(spec))
-}
+// func TestFormatSpec(t *testing.T) {
+// 	spec := map[string]string{"Change": "new",
+// 		"Description": "My line\nSecond line\nThird line\n",
+// 	}
+// 	assert.Equal(t, "Change: new\n\nDescription:\n My line\n Second line\n Third line\n\n", formatSpec(spec))
+// }
