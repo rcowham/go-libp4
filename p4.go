@@ -34,6 +34,7 @@ const (
 	codeList     = '[' //list
 	codeDict     = '{' //dict
 	codeStop     = '0'
+	codeEnd      = 0 //end of the object
 	dictInitSize = 64
 )
 
@@ -82,6 +83,8 @@ func unmarshal(code byte, buffer *bytes.Buffer) (ret interface{}, retErr error) 
 		ret, retErr = readList(buffer)
 	case codeDict:
 		ret, retErr = readDict(buffer)
+	case codeEnd:
+		ret, retErr = nil, nil
 	default:
 		retErr = ErrUnknownCode
 	}
@@ -166,7 +169,7 @@ func readDict(buffer *bytes.Buffer) (ret map[interface{}]interface{}, retErr err
 			break
 		}
 
-		if codeStop == code {
+		if code == codeStop {
 			break
 		}
 
@@ -241,6 +244,10 @@ func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 			break
 		}
 		if err == nil {
+			if r == nil {
+				// End of object
+				break
+			}
 			results = append(results, r.(map[interface{}]interface{}))
 		} else {
 			if mainerr == nil {

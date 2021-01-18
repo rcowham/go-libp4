@@ -44,8 +44,9 @@ func (p4s *p4server) setupServer() {
 
 }
 
-func runUnmarshall(t *testing.T, testFile string) []map[interface{}]interface{} {
+func runUnmarshall(t *testing.T, testFile string) ([]map[interface{}]interface{}, []error) {
 	results := make([]map[interface{}]interface{}, 0)
+	errors := []error{}
 	fname := path.Join("testdata", testFile)
 	buf, err := ioutil.ReadFile(fname)
 	if err != nil {
@@ -58,12 +59,17 @@ func runUnmarshall(t *testing.T, testFile string) []map[interface{}]interface{} 
 			break
 		}
 		if err == nil {
+			if r == nil {
+				// Empty result for the end of the object
+				break
+			}
 			results = append(results, r.(map[interface{}]interface{}))
 		} else {
+			errors = append(errors, err)
 			break
 		}
 	}
-	return results
+	return results, errors
 }
 
 func assertMapContains(t *testing.T, result map[interface{}]interface{}, key string, expected string) {
@@ -73,14 +79,21 @@ func assertMapContains(t *testing.T, result map[interface{}]interface{}, key str
 }
 
 func TestUnmarshallInfo(t *testing.T) {
-	results := runUnmarshall(t, "info.bin")
+	results, errors := runUnmarshall(t, "info.bin")
 	assert.Equal(t, 1, len(results))
+	if !assert.Equal(t, 0, len(errors)) {
+		t.Fatalf("Unexpected number of errors: %v", errors)
+	}
+
 	assertMapContains(t, results[0], "serverAddress", "unknown")
 }
 
 func TestUnmarshallChanges(t *testing.T) {
-	results := runUnmarshall(t, "changes.bin")
+	results, errors := runUnmarshall(t, "changes.bin")
 	assert.Equal(t, 3, len(results))
+	if !assert.Equal(t, 0, len(errors)) {
+		t.Fatalf("Unexpected number of errors: %v", errors)
+	}
 	assertMapContains(t, results[0], "change", "3")
 	assertMapContains(t, results[1], "change", "2")
 	assertMapContains(t, results[2], "change", "1")
@@ -97,8 +110,11 @@ func TestUnmarshallChanges(t *testing.T) {
 }
 
 func TestUnmarshallChangesLongDesc(t *testing.T) {
-	results := runUnmarshall(t, "changes-l.bin")
+	results, errors := runUnmarshall(t, "changes-l.bin")
 	assert.Equal(t, 3, len(results))
+	if !assert.Equal(t, 0, len(errors)) {
+		t.Fatalf("Unexpected number of errors: %v", errors)
+	}
 	assertMapContains(t, results[0], "change", "3")
 	assertMapContains(t, results[1], "change", "2")
 	assertMapContains(t, results[2], "change", "1")
@@ -107,13 +123,36 @@ func TestUnmarshallChangesLongDesc(t *testing.T) {
 }
 
 func TestUnmarshallFetchChange(t *testing.T) {
-	results := runUnmarshall(t, "change-o.bin")
+	results, errors := runUnmarshall(t, "change-o.bin")
 	assert.Equal(t, 1, len(results))
+	if !assert.Equal(t, 0, len(errors)) {
+		t.Fatalf("Unexpected number of errors: %v", errors)
+	}
 	assertMapContains(t, results[0], "Change", "new")
 	assertMapContains(t, results[0], "Status", "new")
 	assertMapContains(t, results[0], "Description", "<enter description here>\n")
 	assertMapContains(t, results[0], "Client", "rcowham-dvcs-1557689468")
 	assertMapContains(t, results[0], "User", "rcowham")
+}
+
+func TestUnmarshallFetchProtects(t *testing.T) {
+	results, errors := runUnmarshall(t, "protects.bin")
+	assert.Equal(t, 4, len(results))
+	if !assert.Equal(t, 0, len(errors)) {
+		t.Fatalf("Unexpected number of errors: %v", errors)
+	}
+	assertMapContains(t, results[0], "code", "stat")
+	assertMapContains(t, results[0], "perm", "write")
+	assertMapContains(t, results[0], "host", "*")
+	assertMapContains(t, results[0], "user", "*")
+	assertMapContains(t, results[0], "line", "1")
+	assertMapContains(t, results[0], "depotFile", "//...")
+	assertMapContains(t, results[3], "code", "stat")
+	assertMapContains(t, results[3], "perm", "super")
+	assertMapContains(t, results[3], "host", "*")
+	assertMapContains(t, results[3], "user", "*")
+	assertMapContains(t, results[3], "line", "4")
+	assertMapContains(t, results[3], "depotFile", "//...")
 }
 
 func TestFormatSpec(t *testing.T) {
