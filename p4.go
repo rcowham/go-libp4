@@ -228,15 +228,36 @@ func (p4 *P4) RunBytes(args []string) ([]byte, error) {
 	}
 }
 
+// Get options that go before the p4 command
+func (p4 *P4) getOptions() []string {
+	opts := []string{"-G"}
+
+	if p4.port != "" {
+		opts = append(opts, "-p", p4.port)
+	}
+	if p4.user != "" {
+		opts = append(opts, "-u", p4.user)
+	}
+	if p4.client != "" {
+		opts = append(opts, "-p", p4.client)
+	}
+	return opts
+}
+
 // Run - runs p4 command and returns map
 func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
-	nargs := []string{"-G"}
-	nargs = append(nargs, args...)
-	cmd := exec.Command("p4", nargs...)
+	opts := p4.getOptions()
+	args = append(opts, args...)
+	cmd := exec.Command("p4", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	mainerr := cmd.Run()
+	// May not be the correct place to do this
+	// But we are ignoring the actual error otherwise
+	if stderr.Len() > 0 {
+		return nil, errors.New(stderr.String())
+	}
 	results := make([]map[interface{}]interface{}, 0)
 	for {
 		r, err := Unmarshal(&stdout)
