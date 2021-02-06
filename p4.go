@@ -286,7 +286,6 @@ func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 	return results, mainerr
 }
 
-// TODO Write tests for this
 // parseError turns perforce error messages into go error's
 func parseError(res map[interface{}]interface{}) error {
 	var err error
@@ -305,9 +304,9 @@ func parseError(res map[interface{}]interface{}) error {
 	}
 	if nodepot {
 		path := strings.Split(e, " - must")[0]
-		return errors.New("No such area '" + path + "', please check your path")
+		return errors.New("P4Error -> No such area '" + path + "', please check your path")
 	}
-	err = fmt.Errorf("Perforce error -> %v", res)
+	err = fmt.Errorf("P4Error -> %s", e)
 	return err
 }
 

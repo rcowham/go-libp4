@@ -2,6 +2,7 @@ package p4
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -132,4 +133,37 @@ func TestFormatSpec(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile("Change: new\n\n"), res)
 	assert.Regexp(t, regexp.MustCompile("Description:\n My line\n Second line\n Third line\n\n"), res)
 
+}
+
+type parseErrorTest struct {
+	input map[interface{}]interface{}
+	want  error
+}
+
+var parseErrorTests = []parseErrorTest{
+	{
+		input: map[interface{}]interface{}{
+			"code":     "error",
+			"data":     "//fake/depot/... - must refer to client 'HOSTNAME'.",
+			"generic":  "2",
+			"severity": "3",
+		},
+		want: errors.New("P4Error -> No such area '//fake/depot/...', please check your path"),
+	},
+	{
+		input: map[interface{}]interface{}{
+			"code":     "error",
+			"data":     "some unknown error",
+			"generic":  "2",
+			"severity": "3",
+		},
+		want: errors.New("P4Error -> some unknown error"),
+	},
+}
+
+func TestParseError(t *testing.T) {
+	for _, tst := range parseErrorTests {
+		err := parseError(tst.input)
+		assert.Equal(t, tst.want, err)
+	}
 }
