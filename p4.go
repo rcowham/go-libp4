@@ -222,11 +222,11 @@ func NewP4Params(port string, user string, client string) *P4 {
 func (p4 *P4) RunBytes(args []string) ([]byte, error) {
 	cmd := exec.Command("p4", args...)
 
-	if data, err := cmd.CombinedOutput(); err != nil {
+	data, err := cmd.CombinedOutput()
+	if err != nil {
 		return data, err
-	} else {
-		return data, nil
 	}
+	return data, nil
 }
 
 // Get options that go before the p4 command
