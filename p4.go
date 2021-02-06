@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"encoding/binary"
@@ -244,6 +245,11 @@ func (p4 *P4) getOptions() []string {
 	return opts
 }
 
+// Runner is an interface to make testing p4 commands more easily
+type Runner interface {
+	Run([]string) ([]map[interface{}]interface{}, error)
+}
+
 // Run - runs p4 command and returns map
 func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 	opts := p4.getOptions()
@@ -278,6 +284,31 @@ func (p4 *P4) Run(args []string) ([]map[interface{}]interface{}, error) {
 		}
 	}
 	return results, mainerr
+}
+
+// TODO Write tests for this
+// parseError turns perforce error messages into go error's
+func parseError(res map[interface{}]interface{}) error {
+	var err error
+	var e string
+	if v, ok := res["data"]; ok {
+		e = v.(string)
+	} else {
+		// I don't know if we can get in this situation
+		e = fmt.Sprintf("Failed to parse error %v", err)
+		return errors.New(e)
+	}
+	// Search for non-existent depot error
+	nodepot, err := regexp.Match(`must refer to client`, []byte(e))
+	if err != nil {
+		return err // Do we need to return (error, error) for real error and parsed one?
+	}
+	if nodepot {
+		path := strings.Split(e, " - must")[0]
+		return errors.New("No such area '" + path + "', please check your path")
+	}
+	err = fmt.Errorf("Perforce error -> %v", res)
+	return err
 }
 
 // Assume multiline entries should be on seperate lines
