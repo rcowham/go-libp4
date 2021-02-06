@@ -2,7 +2,6 @@ package p4
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 )
@@ -65,6 +64,5 @@ func RunFixes(p4r Runner, args []string) ([]Fix, error) {
 
 		fs = append(fs, f)
 	}
-	log.Print(fs)
 	return fs, nil
 }

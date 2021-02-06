@@ -60,6 +60,52 @@ var fixesTests = []fixesTest{
 			},
 		},
 	},
+	{
+		// Single user protection
+		input: fixesInput{
+			args: []string{},
+			res: []map[interface{}]interface{}{
+				{
+					"Job":    "job000001",
+					"Change": "1",
+					"Date":   "1612571080",
+					"User":   "perforce",
+					"Client": "p4_ws",
+					"Status": "closed",
+					"code":   "stat",
+				},
+				{
+					"Job":    "job000002",
+					"Change": "1",
+					"Date":   "1612571081",
+					"User":   "perforce",
+					"Client": "p4_ws",
+					"Status": "closed",
+					"code":   "stat",
+				},
+			},
+		},
+		want: []Fix{
+			{
+				Job:    "job000001",
+				Change: 1,
+				Date:   time.Unix(1612571080, 0),
+				User:   "perforce",
+				Client: "p4_ws",
+				Status: "closed",
+				Code:   "stat",
+			},
+			{
+				Job:    "job000002",
+				Change: 1,
+				Date:   time.Unix(1612571081, 0),
+				User:   "perforce",
+				Client: "p4_ws",
+				Status: "closed",
+				Code:   "stat",
+			},
+		},
+	},
 }
 
 func TestFixes(t *testing.T) {
