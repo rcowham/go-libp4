@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,12 +123,13 @@ func TestUnmarshallFetchProtects(t *testing.T) {
 	assertMapContains(t, results[3], "depotFile", "//...")
 }
 
-/*
-TODO this returns in wrong order
 func TestFormatSpec(t *testing.T) {
 	spec := map[string]string{"Change": "new",
 		"Description": "My line\nSecond line\nThird line\n",
 	}
-	assert.Equal(t, "Change: new\n\nDescription:\n My line\n Second line\n Third line\n\n", formatSpec(spec))
+	// Order of lines isn't deterministic, maps don't retain order
+	res := formatSpec(spec)
+	assert.Regexp(t, regexp.MustCompile("Change: new\n\n"), res)
+	assert.Regexp(t, regexp.MustCompile("Description:\n My line\n Second line\n Third line\n\n"), res)
+
 }
-*/
