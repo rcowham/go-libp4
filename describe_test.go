@@ -81,7 +81,7 @@ var describeTests = []describeTest{
 func TestDescribe(t *testing.T) {
 	for _, tst := range describeTests {
 		fp4 := FakeP4Runner{}
-		fp4.On("Run", []string{"describe"}).Return(tst.input.res, nil)
+		fp4.On("Run", append([]string{"describe"}, tst.input.args...)).Return(tst.input.res, nil)
 		fs, err := RunDescribe(&fp4, tst.input.args)
 		assert.Nil(t, err)
 		assert.Equal(t, tst.want, fs)
