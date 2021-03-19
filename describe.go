@@ -87,10 +87,60 @@ func RunDescribe(p4r Runner, args []string) (Describe, error) {
 		d.Time = time.Unix(epoch, 0)
 	}
 	if v, ok := r["status"]; ok {
-		d.User = v.(string)
+		d.Status = v.(string)
 	}
 	if v, ok := r["user"]; ok {
 		d.User = v.(string)
+	}
+
+	d.Jobs = []JobDescription{}
+	for i := 0; i > -1; i++ {
+		job := JobDescription{}
+		if v, ok := r["job"+strconv.Itoa(i)]; ok {
+			job.Job = v.(string)
+			if v, ok := r["jobstat"+strconv.Itoa(i)]; ok {
+				job.Status = v.(string)
+			}
+			d.Jobs = append(d.Jobs, job)
+		} else {
+			break
+		}
+	}
+
+	d.Revisions = []Revision{}
+	for i := 0; i > -1; i++ {
+		rev := Revision{}
+		if v, ok := r["rev"+strconv.Itoa(i)]; ok {
+			rev.Rev, err = strconv.Atoi(v.(string))
+			if err != nil {
+				return Describe{}, fmt.Errorf(
+					"Failed to parse rev%d %s into an int", i, v.(string))
+			}
+			if v, ok := r["action"+strconv.Itoa(i)]; ok {
+				rev.Action = v.(string)
+			}
+			if v, ok := r["depotFile"+strconv.Itoa(i)]; ok {
+				rev.DepotFile = v.(string)
+			}
+			if v, ok := r["type"+strconv.Itoa(i)]; ok {
+				rev.Type = v.(string)
+			}
+			if v, ok := r["digest"+strconv.Itoa(i)]; ok {
+				rev.Digest = v.(string)
+			}
+			if v, ok := r["fileSize"+strconv.Itoa(i)]; ok {
+				rev.FileSize, err = strconv.Atoi(v.(string))
+				if err != nil {
+					return Describe{}, fmt.Errorf(
+						"Failed to parse fileSize%d %s into an int",
+						i,
+						v.(string))
+				}
+			}
+			d.Revisions = append(d.Revisions, rev)
+		} else {
+			break
+		}
 	}
 
 	return d, nil
