@@ -2,7 +2,6 @@ package p4
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -39,8 +38,8 @@ var fixesTests = []fixesTest{
 		want: []Fix{
 			{
 				Job:    "job000001",
-				Change: 1,
-				Date:   time.Unix(1612571080, 0),
+				Change: "1",
+				Date:   "1612571080",
 				User:   "perforce",
 				Client: "p4_ws",
 				Status: "closed",
@@ -76,8 +75,8 @@ var fixesTests = []fixesTest{
 		want: []Fix{
 			{
 				Job:    "job000001",
-				Change: 1,
-				Date:   time.Unix(1612571080, 0),
+				Change: "1",
+				Date:   "1612571080",
 				User:   "perforce",
 				Client: "p4_ws",
 				Status: "closed",
@@ -85,8 +84,8 @@ var fixesTests = []fixesTest{
 			},
 			{
 				Job:    "job000002",
-				Change: 1,
-				Date:   time.Unix(1612571081, 0),
+				Change: "1",
+				Date:   "1612571081",
 				User:   "perforce",
 				Client: "p4_ws",
 				Status: "closed",

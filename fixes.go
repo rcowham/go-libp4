@@ -2,16 +2,14 @@ package p4
 
 import (
 	"fmt"
-	"strconv"
-	"time"
 )
 
 // Fix is a single fix from p4 fixes result
 type Fix struct {
 	Code   string
-	Change int
+	Change string
 	Client string
-	Date   time.Time
+	Date   string // seconds since epoch
 	Job    string
 	Status string
 	User   string
@@ -37,20 +35,13 @@ func RunFixes(p4r Runner, args []string) ([]Fix, error) {
 			}
 		}
 		if v, ok := r["Change"]; ok {
-			f.Change, err = strconv.Atoi(v.(string))
-			if err != nil {
-				return nil, fmt.Errorf("Failed to parse change %s, res: %v ", v.(string), r)
-			}
+			f.Change = v.(string)
 		}
 		if v, ok := r["Client"]; ok {
 			f.Client = v.(string)
 		}
 		if v, ok := r["Date"]; ok {
-			epoch, err := strconv.ParseInt(v.(string), 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to parse Date %s, res: %v ", v.(string), r)
-			}
-			f.Date = time.Unix(epoch, 0)
+			f.Date = v.(string)
 		}
 		if v, ok := r["Job"]; ok {
 			f.Job = v.(string)

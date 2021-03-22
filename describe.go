@@ -3,16 +3,15 @@ package p4
 import (
 	"fmt"
 	"strconv"
-	"time"
 )
 
 type Revision struct {
 	Action    string
-	Rev       int
+	Rev       string
 	DepotFile string
 	Type      string
 	Digest    string
-	FileSize  int
+	FileSize  string
 }
 
 type JobDescription struct {
@@ -23,13 +22,13 @@ type JobDescription struct {
 // Fix is a single fix from p4 fixes result
 type Describe struct {
 	Code       string
-	Change     int
-	OldChange  int
+	Change     string
+	OldChange  string
 	ChangeType string
 	Client     string
 	Desc       string
 	Path       string
-	Time       time.Time
+	Time       string
 	Status     string
 	User       string
 	Jobs       []JobDescription
@@ -56,16 +55,10 @@ func RunDescribe(p4r Runner, args []string) (Describe, error) {
 		}
 	}
 	if v, ok := r["change"]; ok {
-		d.Change, err = strconv.Atoi(v.(string))
-		if err != nil {
-			return Describe{}, fmt.Errorf("Failed to parse change %s, res: %v ", v.(string), r)
-		}
+		d.Change = v.(string)
 	}
 	if v, ok := r["oldChange"]; ok {
-		d.OldChange, err = strconv.Atoi(v.(string))
-		if err != nil {
-			return Describe{}, fmt.Errorf("Failed to parse old change %s, res: %v ", v.(string), r)
-		}
+		d.OldChange = v.(string)
 	}
 	if v, ok := r["changeType"]; ok {
 		d.ChangeType = v.(string)
@@ -80,11 +73,10 @@ func RunDescribe(p4r Runner, args []string) (Describe, error) {
 		d.Path = v.(string)
 	}
 	if v, ok := r["time"]; ok {
-		epoch, err := strconv.ParseInt(v.(string), 10, 64)
+		d.Time = v.(string)
 		if err != nil {
 			return Describe{}, fmt.Errorf("Failed to parse Date %s, res: %v ", v.(string), r)
 		}
-		d.Time = time.Unix(epoch, 0)
 	}
 	if v, ok := r["status"]; ok {
 		d.Status = v.(string)
@@ -111,11 +103,7 @@ func RunDescribe(p4r Runner, args []string) (Describe, error) {
 	for i := 0; i > -1; i++ {
 		rev := Revision{}
 		if v, ok := r["rev"+strconv.Itoa(i)]; ok {
-			rev.Rev, err = strconv.Atoi(v.(string))
-			if err != nil {
-				return Describe{}, fmt.Errorf(
-					"Failed to parse rev%d %s into an int", i, v.(string))
-			}
+			rev.Rev = v.(string)
 			if v, ok := r["action"+strconv.Itoa(i)]; ok {
 				rev.Action = v.(string)
 			}
@@ -129,13 +117,7 @@ func RunDescribe(p4r Runner, args []string) (Describe, error) {
 				rev.Digest = v.(string)
 			}
 			if v, ok := r["fileSize"+strconv.Itoa(i)]; ok {
-				rev.FileSize, err = strconv.Atoi(v.(string))
-				if err != nil {
-					return Describe{}, fmt.Errorf(
-						"Failed to parse fileSize%d %s into an int",
-						i,
-						v.(string))
-				}
+				rev.FileSize = v.(string)
 			}
 			d.Revisions = append(d.Revisions, rev)
 		} else {

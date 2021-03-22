@@ -2,7 +2,6 @@ package p4
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -49,13 +48,13 @@ var describeTests = []describeTest{
 		},
 		want: Describe{
 			Code:       "stat",
-			Change:     123,
-			OldChange:  122,
+			Change:     "123",
+			OldChange:  "122",
 			ChangeType: "public",
 			Client:     "user_ws",
 			Desc:       "a description",
 			Path:       "//path/to/*",
-			Time:       time.Unix(1612369118, 0),
+			Time:       "1612369118",
 			Status:     "submitted",
 			User:       "a.person",
 			Jobs: []JobDescription{
@@ -67,11 +66,11 @@ var describeTests = []describeTest{
 			Revisions: []Revision{
 				{
 					Action:    "edit",
-					Rev:       16,
+					Rev:       "16",
 					DepotFile: "//path/to/file.sv",
 					Type:      "text",
 					Digest:    "71488D5623A97858A5683140F6EEF5E2",
-					FileSize:  21567,
+					FileSize:  "21567",
 				},
 			},
 		},
@@ -119,13 +118,13 @@ var describeTests = []describeTest{
 		},
 		want: Describe{
 			Code:       "stat",
-			Change:     123,
-			OldChange:  122,
+			Change:     "123",
+			OldChange:  "122",
 			ChangeType: "public",
 			Client:     "user_ws",
 			Desc:       "a description",
 			Path:       "//path/to/*",
-			Time:       time.Unix(1612369118, 0),
+			Time:       "1612369118",
 			Status:     "submitted",
 			User:       "a.person",
 			Jobs: []JobDescription{
@@ -145,27 +144,27 @@ var describeTests = []describeTest{
 			Revisions: []Revision{
 				{
 					Action:    "edit",
-					Rev:       16,
+					Rev:       "16",
 					DepotFile: "//path/to/file.sv",
 					Type:      "text",
 					Digest:    "71488D5623A97858A5683140F6EEF5E2",
-					FileSize:  21567,
+					FileSize:  "21567",
 				},
 				{
 					Action:    "add",
-					Rev:       17,
+					Rev:       "17",
 					DepotFile: "//path/to/file2.sv",
 					Type:      "text",
 					Digest:    "71488D5623A97858A5683140F6EEF5E3",
-					FileSize:  21567,
+					FileSize:  "21567",
 				},
 				{
 					Action:    "delete",
-					Rev:       18,
+					Rev:       "18",
 					DepotFile: "//path/to/file3.sv",
 					Type:      "text",
 					Digest:    "71488D5623A97858A5683140F6EEF5E4",
-					FileSize:  21567,
+					FileSize:  "21567",
 				},
 			},
 		},
