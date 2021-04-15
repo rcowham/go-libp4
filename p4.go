@@ -423,6 +423,11 @@ func (p4 *P4) SaveTxt(specName string, specContents map[string]string, args []st
 	stdin.Close()
 	cmd.Wait()
 
+	e, err := ioutil.ReadAll(&stderr)
+	log.Println(e)
+	if len(e) > 0 {
+		return "", errors.New(string(e))
+	}
 	x, err := ioutil.ReadAll(&stdout)
 	s := string(x)
 	log.Println(s)

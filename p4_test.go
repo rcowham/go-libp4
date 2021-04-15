@@ -172,7 +172,7 @@ func TestSave(t *testing.T) {
 	ds := map[string]string{
 		"Job":         "DEV-123",
 		"Title":       "A failing update",
-		"Status":      "Open",
+		"Status":      "UNKNOWN",
 		"Assignee":    "a.person@email.com",
 		"Description": "Desc2",
 	}
