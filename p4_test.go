@@ -167,3 +167,17 @@ func TestParseError(t *testing.T) {
 		assert.Equal(t, tst.want, err)
 	}
 }
+
+func TestSave(t *testing.T) {
+	ds := map[string]string{
+		"Job":         "DEV-123",
+		"Title":       "A failing update",
+		"Status":      "Open",
+		"Assignee":    "a.person@email.com",
+		"Description": "Desc2",
+	}
+	p4 := NewP4Params("p4training.hh.imgtec.org:1666", "brett.bates", "p4go_test_ws")
+	res, err := p4.SaveTxt("job", ds, []string{})
+	assert.Nil(t, err)
+	fmt.Println(res)
+}

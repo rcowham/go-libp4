@@ -13,6 +13,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -240,7 +242,23 @@ func (p4 *P4) getOptions() []string {
 		opts = append(opts, "-u", p4.user)
 	}
 	if p4.client != "" {
-		opts = append(opts, "-p", p4.client)
+		opts = append(opts, "-c", p4.client)
+	}
+	return opts
+}
+
+// Get options that go before the p4 command
+func (p4 *P4) getOptionsNonMarshal() []string {
+	opts := []string{}
+
+	if p4.port != "" {
+		opts = append(opts, "-p", p4.port)
+	}
+	if p4.user != "" {
+		opts = append(opts, "-u", p4.user)
+	}
+	if p4.client != "" {
+		opts = append(opts, "-c", p4.client)
 	}
 	return opts
 }
@@ -332,32 +350,39 @@ func formatSpec(specContents map[string]string) string {
 
 // Save - runs p4 -i for specified spec returns result
 func (p4 *P4) Save(specName string, specContents map[string]string, args []string) ([]map[interface{}]interface{}, error) {
-	nargs := []string{"-G", specName, "-i"}
+	opts := p4.getOptions()
+	nargs := []string{specName, "-i"}
 	nargs = append(nargs, args...)
-	cmd := exec.Command("p4", nargs...)
+	args = append(opts, nargs...)
+
+	log.Println(args)
+	cmd := exec.Command("p4", args...)
 	var stdout, stderr bytes.Buffer
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		fmt.Println("An error occured: ", err)
 	}
-	defer stdin.Close()
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	mainerr := cmd.Start()
 	if mainerr != nil {
 		fmt.Println("An error occured: ", mainerr)
 	}
-	io.WriteString(stdin, formatSpec(specContents))
+	spec := formatSpec(specContents)
+	log.Println(spec)
+	io.WriteString(stdin, spec)
+	stdin.Close()
 	cmd.Wait()
 
 	results := make([]map[interface{}]interface{}, 0)
 	for {
 		r, err := Unmarshal(&stdout)
-		if err == io.EOF {
+		if err == io.EOF || r == nil {
 			break
 		}
 		if err == nil {
 			results = append(results, r.(map[interface{}]interface{}))
+			fmt.Println(r)
 		} else {
 			if mainerr == nil {
 				mainerr = err
@@ -366,4 +391,40 @@ func (p4 *P4) Save(specName string, specContents map[string]string, args []strin
 		}
 	}
 	return results, mainerr
+}
+
+// The Save() func doesn't work as it needs the data marshalled instead of
+// map[string]string
+// This is a quick fix, the real fix is writing a marshal() function or try
+// using gopymarshal
+func (p4 *P4) SaveTxt(specName string, specContents map[string]string, args []string) (string, error) {
+	opts := p4.getOptionsNonMarshal()
+	nargs := []string{specName, "-i"}
+	nargs = append(nargs, args...)
+	args = append(opts, nargs...)
+
+	log.Println(args)
+	cmd := exec.Command("p4", args...)
+	var stdout, stderr bytes.Buffer
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Println("An error occured: ", err)
+	}
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	mainerr := cmd.Start()
+	if mainerr != nil {
+		fmt.Println("An error occured: ", mainerr)
+	}
+	spec := formatSpec(specContents)
+	log.Println(spec)
+	io.WriteString(stdin, spec)
+	// Need to explicitly call this for the command to fire
+	stdin.Close()
+	cmd.Wait()
+
+	x, err := ioutil.ReadAll(&stdout)
+	s := string(x)
+	log.Println(s)
+	return s, mainerr
 }
