@@ -3,38 +3,116 @@ package p4
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	verboseLog = false
-	testRoot   string
+	debug    bool = true
+	logger   *logrus.Logger
+	testRoot string
 )
+
+func init() {
+	flag.BoolVar(&debug, "debug", true, "Set to have debug logging for tests.")
+}
+
+func createLogger() *logrus.Logger {
+	if logger != nil {
+		return logger
+	}
+	logger = logrus.New()
+	logger.Level = logrus.InfoLevel
+	if debug {
+		logger.Level = logrus.DebugLevel
+	}
+	return logger
+}
+
+type P4Test struct {
+	startDir   string
+	p4d        string
+	port       string
+	testRoot   string
+	serverRoot string
+	clientRoot string
+}
+
+func MakeP4Test(startDir string) *P4Test {
+	var err error
+	p4t := &P4Test{}
+	p4t.startDir = startDir
+	if err != nil {
+		panic(err)
+	}
+	p4t.testRoot = filepath.Join(p4t.startDir, "testroot")
+	p4t.serverRoot = filepath.Join(p4t.testRoot, "server")
+	p4t.clientRoot = filepath.Join(p4t.testRoot, "client")
+	p4t.ensureDirectories()
+	p4t.p4d = "p4d"
+	p4t.port = fmt.Sprintf("rsh:%s -r \"%s\" -L log -vserver=3 -i", p4t.p4d, p4t.serverRoot)
+	os.Chdir(p4t.clientRoot)
+	p4config := filepath.Join(p4t.startDir, os.Getenv("P4CONFIG"))
+	writeToFile(p4config, fmt.Sprintf("P4PORT=%s", p4t.port))
+	os.Chdir(p4t.serverRoot)
+	cmd := exec.Command("p4d", "-xu")
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Fatalf("Error %v %q %q", err, out.String(), stderr.String())
+	}
+	// log.Debugf("Upgraded", out.String(), stderr.String())
+	return p4t
+}
+
+// writeToFile - write contents to file
+func writeToFile(fname, contents string) error {
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprint(f, contents)
+	if err != nil {
+		_ = f.Close()
+		return err
+	}
+	err = f.Close()
+	return err
+}
+
+func (p4t *P4Test) ensureDirectories() {
+	for _, d := range []string{p4t.serverRoot, p4t.clientRoot} {
+		err := os.MkdirAll(d, 0777)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create %s: %v", d, err)
+		}
+	}
+}
 
 // TestMain - required as a wrapper for 'go test' to set directory appropriatly so that
 // p4 will pick up .p4config etc.
 func TestMain(m *testing.M) {
-	if verboseLog {
-		log.Printf("TestMain: %s", os.Environ())
-	}
+	logger := createLogger()
+	logger.Debugf("TestMain: %s", os.Environ())
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Failed to Getwd: %v\n", err)
+		logger.Debugf("Failed to Getwd: %v\n", err)
 	}
-	if verboseLog {
-		log.Printf("TM Cwd: %s\n", dir)
-	}
+	logger.Debugf("TM Cwd: %s\n", dir)
 	os.Setenv("PWD", dir)
 	code := m.Run()
 	os.Exit(code)
@@ -44,49 +122,19 @@ func TestMain(m *testing.M) {
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
 	testRoot = path.Join(path.Dir(filename), "_testdata")
-	setupServer()
-}
-
-// Creates blank DVCS repo
-func setupServer() {
-	os.RemoveAll(testRoot + "/")
-	err := os.Mkdir(testRoot, 0755)
-	if err != nil {
-		log.Printf("Failed to mkdir: %v\n", err)
-	}
-	err = os.Chdir(testRoot)
-	if err != nil {
-		log.Printf("Failed to chdir: %v\n", err)
-	}
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Printf("Failed to Getwd: %v\n", err)
-	}
-	if verboseLog {
-		log.Printf("Init Cwd: %s\n", dir)
-	}
-	os.Setenv("PWD", dir)
-	cmd := exec.Command("p4", "init", "-n", "-C1")
-
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		log.Printf("Failed to start server: %s\n", stderr.String())
-		log.Fatal(err)
-	}
-	if verboseLog {
-		log.Printf("Started server: %q\n", out.String())
-	}
+	p4t := MakeP4Test(testRoot)
+	logger := createLogger()
+	logger.Debugf("Created server: %s\n", p4t.testRoot)
 }
 
 func TestInfo(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	dir, err := os.Getwd()
 	if err != nil {
-		t.Logf("Failed to Getwd: %v\n", err)
+		logger.Debugf("Failed to Getwd: %v\n", err)
 	}
-	t.Logf("Test Cwd: %s\n", dir)
+	logger.Debugf("Test Cwd: %s\n", dir)
 
 	cmd := exec.Command("p4", "info")
 	var out, stderr bytes.Buffer
@@ -94,17 +142,18 @@ func TestInfo(t *testing.T) {
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error %v %q %q", err, out.String(), stderr.String())
 	}
-	t.Logf("P4 info: %s\nerr: %s", out.String(), stderr.String())
+	logger.Debugf("P4 info: %s\nerr: %s", out.String(), stderr.String())
 
 	p4 := NewP4()
 	result, err := p4.Run([]string{"info"})
+	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, len(result))
-	t.Logf("P4 info result: %v\n", result[0])
+	logger.Debugf("P4 info result: %v\n", result[0])
 	assertMapContains(t, result[0], "serverAddress", "unknown")
-	assertMapContains(t, result[0], "clientStream", "//stream/main")
-	for _, k := range []string{"caseHandling", "clientName", "serverName", "serverUptime"} {
+	assertMapContains(t, result[0], "clientName", "*unknown*")
+	for _, k := range []string{"caseHandling", "clientName", "serverRoot", "serverUptime"} {
 		assertMapKey(t, result[0], k)
 	}
 }
@@ -116,22 +165,32 @@ func check(t *testing.T, e error) {
 }
 
 func TestAdd(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	file1 := "file1"
 
-	err := ioutil.WriteFile(file1, []byte("Some text"), 0644)
+	err := os.WriteFile(file1, []byte("Some text"), 0644)
 	check(t, err)
 
 	p4 := NewP4()
+	p4.client = "test_ws"
+	client, err := p4.Fetch("client")
+	assert.Equal(t, nil, err)
+	logger.Debugf("client: %+v", client)
+	client["View"] = "//depot/... //test_ws/..."
+	sresult, err := p4.SaveTxt("client", client)
+	logger.Debugf("save: %v, %v", sresult, err)
+
 	result, err := p4.Run([]string{"add", file1})
-	t.Logf("add err: %v", err)
+	logger.Debugf("add err: %v", err)
 	assert.Equal(t, 1, len(result))
-	t.Logf("P4 add result: %v\n", result[0])
+	logger.Debugf("P4 add result: %v\n", result[0])
 	assertMapContains(t, result[0], "depotFile", "//stream/main/file1")
 
 	result, err = p4.Run([]string{"opened", file1})
-	t.Logf("opened err: %v", err)
+	logger.Debugf("opened err: %v", err)
 	assert.Equal(t, 1, len(result))
-	t.Logf("P4 opened result: %v\n", result[0])
+	logger.Debugf("P4 opened result: %v\n", result[0])
 	assertMapContains(t, result[0], "depotFile", "//stream/main/file1")
 	assertMapContains(t, result[0], "clientFile", fmt.Sprintf("%s/%s", testRoot, file1))
 	assertMapContains(t, result[0], "change", "default")
@@ -141,8 +200,8 @@ func TestAdd(t *testing.T) {
 func runUnmarshall(t *testing.T, testFile string) ([]map[interface{}]interface{}, []error) {
 	results := make([]map[interface{}]interface{}, 0)
 	errors := []error{}
-	fname := path.Join("testdata", testFile)
-	buf, err := ioutil.ReadFile(fname)
+	fname := path.Join(testRoot, "..", "testdata", testFile)
+	buf, err := os.ReadFile(fname)
 	if err != nil {
 		assert.Fail(t, fmt.Sprintf("Can't read file: %s", fname))
 	}
@@ -178,6 +237,13 @@ func assertMapKey(t *testing.T, result map[interface{}]interface{}, key string) 
 }
 
 func TestUnmarshallInfo(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
+	dir, err := os.Getwd()
+	if err != nil {
+		logger.Debugf("Failed to Getwd: %v\n", err)
+	}
+	logger.Debugf("Test Cwd: %s\n", dir)
 	results, errors := runUnmarshall(t, "info.bin")
 	assert.Equal(t, 1, len(results))
 	if !assert.Equal(t, 0, len(errors)) {
@@ -188,6 +254,8 @@ func TestUnmarshallInfo(t *testing.T) {
 }
 
 func TestUnmarshallChanges(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	results, errors := runUnmarshall(t, "changes.bin")
 	assert.Equal(t, 3, len(results))
 	if !assert.Equal(t, 0, len(errors)) {
@@ -209,6 +277,8 @@ func TestUnmarshallChanges(t *testing.T) {
 }
 
 func TestUnmarshallChangesLongDesc(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	results, errors := runUnmarshall(t, "changes-l.bin")
 	assert.Equal(t, 3, len(results))
 	if !assert.Equal(t, 0, len(errors)) {
@@ -222,6 +292,8 @@ func TestUnmarshallChangesLongDesc(t *testing.T) {
 }
 
 func TestUnmarshallFetchChange(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	results, errors := runUnmarshall(t, "change-o.bin")
 	assert.Equal(t, 1, len(results))
 	if !assert.Equal(t, 0, len(errors)) {
@@ -235,6 +307,8 @@ func TestUnmarshallFetchChange(t *testing.T) {
 }
 
 func TestUnmarshallFetchProtects(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	results, errors := runUnmarshall(t, "protects.bin")
 	assert.Equal(t, 4, len(results))
 	if !assert.Equal(t, 0, len(errors)) {
@@ -255,6 +329,8 @@ func TestUnmarshallFetchProtects(t *testing.T) {
 }
 
 func TestFormatSpec(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	spec := map[string]string{"Change": "new",
 		"Description": "My line\nSecond line\nThird line\n",
 	}
@@ -292,22 +368,27 @@ var parseErrorTests = []parseErrorTest{
 }
 
 func TestParseError(t *testing.T) {
+	logger := createLogger()
+	logger.Debugf("======== Test: %s", t.Name())
 	for _, tst := range parseErrorTests {
 		err := parseError(tst.input)
 		assert.Equal(t, tst.want, err)
 	}
 }
 
-func TestSave(t *testing.T) {
-	ds := map[string]string{
-		"Job":         "DEV-123",
-		"Title":       "A failing update",
-		"Status":      "UNKNOWN",
-		"Assignee":    "a.person@email.com",
-		"Description": "Desc2",
-	}
-	p4 := NewP4Params("p4training.hh.imgtec.org:1666", "brett.bates", "p4go_test_ws")
-	res, err := p4.SaveTxt("job", ds, []string{})
-	assert.Nil(t, err)
-	fmt.Println(res)
-}
+// func TestSave(t *testing.T) {
+// 	logger := createLogger()
+// 	logger.Debugf("======== Test: %s", t.Name())
+// 	ds := map[string]string{
+// 		"Job":         "DEV-123",
+// 		"Title":       "A failing update",
+// 		"Status":      "UNKNOWN",
+// 		"Assignee":    "a.person@email.com",
+// 		"Description": "Desc2",
+// 	}
+// 	// p4 := NewP4Params("p4training.hh.imgtec.org:1666", "brett.bates", "p4go_test_ws")
+// 	p4 := NewP4()
+// 	res, err := p4.SaveTxt("job", ds, []string{})
+// 	assert.Nil(t, err)
+// 	fmt.Println(res)
+// }

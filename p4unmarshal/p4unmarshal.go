@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	p4 "github.com/brettbates/p4go"
+	p4 "github.com/rcowham/go-libp4"
 )
 
 func main() {

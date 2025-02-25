@@ -5,7 +5,6 @@ It assumes p4 or p4.exe is in the PATH.
 It uses the p4 -G global option which returns Python marshalled dictionary objects.
 
 p4 Python parsing module is based on: https://github.com/hambster/gopymarshal
-
 */
 package p4
 
@@ -13,7 +12,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os/exec"
 	"regexp"
@@ -349,7 +347,7 @@ func formatSpec(specContents map[string]string) string {
 }
 
 // Save - runs p4 -i for specified spec returns result
-func (p4 *P4) Save(specName string, specContents map[string]string, args []string) ([]map[interface{}]interface{}, error) {
+func (p4 *P4) Save(specName string, specContents map[string]string, args ...string) ([]map[interface{}]interface{}, error) {
 	opts := p4.getOptions()
 	nargs := []string{specName, "-i"}
 	nargs = append(nargs, args...)
@@ -393,11 +391,30 @@ func (p4 *P4) Save(specName string, specContents map[string]string, args []strin
 	return results, mainerr
 }
 
+// Fetch - runs p4 <cmd> -o for specified spec and returns result
+func (p4 *P4) Fetch(specName string, args ...string) (map[string]string, error) {
+	opts := p4.getOptions()
+	nargs := []string{specName, "-o"}
+	nargs = append(nargs, args...)
+	args = append(opts, nargs...)
+
+	cresult, err := p4.Run(args)
+	result := make(map[string]string, 0)
+	if len(cresult) == 0 {
+		return result, err
+	}
+	for i, v := range cresult[0] {
+		log.Printf("%v: %v", i, v)
+		// result[k.(string)] = v.(string)
+	}
+	return result, err
+}
+
 // The Save() func doesn't work as it needs the data marshalled instead of
 // map[string]string
 // This is a quick fix, the real fix is writing a marshal() function or try
 // using gopymarshal
-func (p4 *P4) SaveTxt(specName string, specContents map[string]string, args []string) (string, error) {
+func (p4 *P4) SaveTxt(specName string, specContents map[string]string, args ...string) (string, error) {
 	opts := p4.getOptionsNonMarshal()
 	nargs := []string{specName, "-i"}
 	nargs = append(nargs, args...)
@@ -423,12 +440,12 @@ func (p4 *P4) SaveTxt(specName string, specContents map[string]string, args []st
 	stdin.Close()
 	cmd.Wait()
 
-	e, err := ioutil.ReadAll(&stderr)
+	e, err := io.ReadAll(&stderr)
 	log.Println(e)
 	if len(e) > 0 {
 		return "", errors.New(string(e))
 	}
-	x, err := ioutil.ReadAll(&stdout)
+	x, err := io.ReadAll(&stdout)
 	s := string(x)
 	log.Println(s)
 	return s, mainerr
